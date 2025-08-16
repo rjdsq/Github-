@@ -1285,7 +1285,7 @@ footer {
     width: 100%;
     font-size: 0.8rem;
     min-width: 0;
-    border: 1px solid #034;
+    
     
     
 }
@@ -1332,7 +1332,7 @@ footer {
 /* 上传进度条 */
 .upload-progress {
     height: 100%;
-    width: 0;
+    
     background: linear-gradient(90deg, #22c55e, #0ea5e9, #6366f1, #f472b6, #f59e42, #22c55e);
     background-size: 200% 100%;
     animation: rainbow-bar 2s linear infinite;
