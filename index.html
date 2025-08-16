@@ -2140,16 +2140,33 @@ if (!res.ok) {
                         const errorData = await response.json().catch(() => ({}));
                         throw new Error(errorData.message || `上传失败: HTTP ${response.status}`);
                     }
-                    if (statusElement) {
-                        statusElement.textContent = '上传成功';
-                        statusElement.className = 'upload-status success';
+                                        if (statusElement) {
+                        // 1. 更新状态为成功
+                        statusElement.innerHTML = '<i class="fa fa-check-circle"></i> 上传成功';
+                        statusElement.className = 'upload-status status-success';
+
+                        // 2. 找到这个上传项的整个卡片
+                        const itemCard = statusElement.closest('.upload-item');
+                        if (itemCard) {
+                            // 3. 1.5秒后，让这个卡片平滑地消失
+                            setTimeout(() => {
+                                itemCard.style.transition = 'opacity 0.5s, max-height 0.5s, margin 0.5s, padding 0.5s';
+                                itemCard.style.opacity = '0';
+                                itemCard.style.maxHeight = '0';
+                                itemCard.style.margin = '0';
+                                itemCard.style.padding = '0';
+                                // 4. 动画结束后彻底移除，防止占用空间
+                                setTimeout(() => itemCard.remove(), 500);
+                            }, 1500); // 停留1.5秒给用户看结果
+                        }
                     }
-                    resolve();
+                    resolve(); // <--- 依然需要调用 resolve() 来继续队列
                 } catch (error) {
                     if (statusElement) {
-                        statusElement.textContent = '上传失败';
-                        statusElement.className = 'upload-status error';
+                        statusElement.innerHTML = '<i class="fa fa-times-circle"></i> 上传失败';
+                        statusElement.className = 'upload-status status-error';
                     }
+                    // 失败的项我们不隐藏，让用户看到错误
                     reject(new Error(`上传失败: ${error.message}`));
                 }
             };
