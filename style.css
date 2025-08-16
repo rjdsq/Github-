@@ -1259,6 +1259,8 @@ footer {
     width: 90%;
     max-width: 26rem;
     font-size: 0.75rem;
+    border: 1px solid #034;
+    z-index:200;
 }
 
 /* 上传进度百分比 */
@@ -1283,6 +1285,9 @@ footer {
     width: 100%;
     font-size: 0.8rem;
     min-width: 0;
+    border: 1px solid #034;
+    
+    
 }
 
 /* 上传文件名 */
@@ -1311,6 +1316,7 @@ footer {
     gap: 0.5rem;
     max-height: 12rem;
     overflow-y: auto;
+    
 }
 
 /* 上传进度条容器 */
