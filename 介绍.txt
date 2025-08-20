@@ -1,0 +1,120 @@
+
+你是一位专业的Web前端开发专家，精通原生JavaScript、DOM操作以及单页面应用（SPA）的导航和状态管理。
+
+**核心目标:**
+请重构我提供的 `index.html` 文件中的 JavaScript 代码，以实现一个更健壮、用户体验更佳的返回键处理逻辑。
+
+**当前存在的问题:**
+我想把html套入手机软件使用，但是目前的代码在处理返回键逻辑时存在严重问题：
+1.  **导航错乱:** 在打开菜单或弹窗后进行页面导航，再点击返回时，程序逻辑会发生错乱，经常意外地跳转回最开始的仓库列表页面。
+2.  **返回键体验不佳:** 按下返回键并不会直接返回上一个页面/目录，而是优先关闭当前打开的菜单或弹窗，用户需要按两次返回才能实现一次真正的页面后退。
+3.  **根本原因:** 这些问题源于错误地使用了浏览器的 `History API` (`history.pushState` / `history.replaceState`) 来管理临时的UI状态（如弹窗是否打开），这污染了本该只用于页面导航的历史记录。
+
+**期望的最终效果 (方案C):**
+我希望实现一个“两全其美”的方案，既能提供类似原生App的返回键体验，又不破坏核心的页面导航功能。具体行为如下：
+*   当用户按下返回键时，程序应**优先关闭**当前界面最上层的临时UI元素（如模态框、右键菜单、图片预览、侧边栏等）。
+*   只有当界面上**没有任何**可以关闭的临时UI元素时，返回键才执行其**默认的页面后退**功能。
+
+**详细的技术实现步骤:**
+
+请严格按照以下步骤进行代码重构：
+
+**第一步：移除所有错误的 History API 调用**
+请在整个 `<script>` 标签内搜索并删除所有用于管理UI状态的 `history.pushState` 和 `history.replaceState` 调用。这包括但不限于在打开/显示以下元素时添加的代码：
+*   主菜单 (`mainMenuPopup`)
+*   排序菜单 (`customSortDropdown`)
+*   文件/仓库的右键菜单 (`contextMenu`)
+*   所有模态框 (`...Modal`)
+*   媒体预览 (`mediaPreview`)
+*   API状态面板 (`apiStatusPanel`)
+*   进入多选模式时
+
+**第二步：创建一个新的UI状态管理器**
+在全局作用域中（例如，在 `const state = {...}` 定义的上方），声明一个新的常量数组，用于作为我们的UI状态栈。
+```javascript
+const uiStateStack = [];
+```
+
+**第三步：创建一个新的核心返回键处理函数**
+在代码中添加以下这个新函数。它将成为处理所有UI关闭逻辑的核心。
+```javascript
+function handleBackPress() {
+    if (uiStateStack.length > 0) {
+        const closeFunction = uiStateStack.pop(); 
+        if (typeof closeFunction === 'function') {
+            closeFunction(); 
+        }
+        history.pushState(history.state, '', window.location.href);
+        return true; 
+    }
+    return false; 
+}
+```
+
+**第四步：升级 `popstate` 事件监听器**
+找到文件末尾的 `window.addEventListener('popstate', ...)`，并用以下新版本**完整替换**它。新版本的监听器会优先调用 `handleBackPress`。
+```javascript
+window.addEventListener('popstate', async (event) => {
+    if (handleBackPress()) {
+        return;
+    }
+
+    const historyState = event.state || {};
+    state.currentRepo = historyState.repo;
+    state.currentPath = historyState.path;
+
+    if (!state.repos || state.repos.length === 0) {
+        await fetchRepos(true); 
+    }
+
+    if (state.currentRepo) {
+        const repoData = state.repos.find(r => r.full_name === state.currentRepo);
+        if (repoData) {
+            state.currentBranch = historyState.branch || repoData.default_branch;
+            const repoNameOnly = state.currentRepo.split('/')[1];
+            el.currentRepo.textContent = repoNameOnly;
+            renderPathNav();
+            await fetchBranches(repoData); 
+            renderBranchSwitcher();
+            await fetchFiles();
+            toggleView(false);
+        } else {
+            showToast('仓库信息未找到，已返回仓库列表');
+            showRepoListView();
+        }
+    } else {
+        showRepoListView();
+    }
+});
+```
+
+**第五步：集成UI状态管理器到所有UI元素的“打开”和“关闭”函数中**
+
+这是最关键的一步。你需要修改所有打开和关闭临时UI元素的函数。
+
+1.  **创建并替换关闭函数：**
+    *   对于HTML中所有使用内联 `onclick="el.someModal.classList.add('hidden')"` 的关闭按钮，你需要将它们改为调用一个专用的 `hide...` 函数，例如 `onclick="hideSomeModal()"`。
+    *   然后，创建这些新的 `hide...` 函数。**每个 `hide...` 函数都必须包含从 `uiStateStack` 中移除自身的清理逻辑。** 模板如下：
+        ```javascript
+        function hideSomeModal() {
+            el.someModal.classList.add('hidden');
+            const index = uiStateStack.indexOf(hideSomeModal);
+            if (index > -1) {
+                uiStateStack.splice(index, 1);
+            }
+        }
+        ```
+    *   请为 `renameModal`, `deleteModal`, `createRepoModal`, `createFolderModal`, `createFileModal`, `createBranchModal` 创建并应用这样的新关闭函数。
+
+2.  **修改“打开”函数：**
+    *   在**每一个**负责**显示/打开**临时UI元素的函数末尾，添加一行代码，将它对应的“关闭函数”推入 `uiStateStack` 栈中。
+    *   **示例:**
+        *   在 `showEditModal()` 函数末尾添加: `uiStateStack.push(hideEditModal);`
+        *   在 `showContextMenu()` 函数末尾添加: `uiStateStack.push(hideContextMenu);`
+        *   在 `openProxySettingsModal()` 函数末尾添加: `uiStateStack.push(closeProxySettingsModal);`
+    *   请确保为**所有**打开弹窗、菜单、面板和预览的函数都执行此操作。
+
+**交付要求:**
+请在完成以上所有重构步骤后，向我提供**完整的、可以直接使用的 `index.html` 文件**作为最终输出。请不要删减任何原有的功能代码，确保所有功能在新逻辑下依然正常工作。取消掉原有的所有注释，给所有/每个函数名精简注释。给html 全部容器都精简注释，注释请用中文。
+
+
