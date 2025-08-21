@@ -1,0 +1,96 @@
+/* [添加/替换] -- 霓虹空明风格美化方案 (保留原始布局) */
+
+/* --- 1. 定义霓虹主题色 --- */
+:root {
+    --neon-cyan: #22d3ee; /* 青色 */
+    --neon-violet: #a78bfa; /* 紫罗兰色 */
+    --bg-glass: rgba(26, 32, 51, 0.65); /* 玻璃背景色 */
+}
+
+/* --- 2. 菜单主容器 - 玻璃材质与霓虹光晕 --- */
+#mainMenuPopup {
+    /* 玻璃拟态效果 */
+    background-color: var(--bg-glass);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+
+    /* 替换边框为霓虹光晕 */
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    box-shadow: 0 0 20px rgba(22, 163, 175, 0.2), /* 外层青色光晕 */
+                0 4px 30px rgba(0, 0, 0, 0.3);      /* 深邃阴影 */
+
+    /* 弹出动画 */
+    opacity: 0;
+    transform: scale(0.98) translateY(-10px);
+    transform-origin: top right;
+    transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+}
+
+#mainMenuPopup:not(.hidden) {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
+
+/* --- 3. 用户信息头部 --- */
+#mainMenuPopup .user-profile-header {
+    /* 替换边框为发光的渐变分割线 */
+    border-bottom: none; /* 移除旧边框 */
+    position: relative;
+}
+
+#mainMenuPopup .user-profile-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 5%;
+    width: 90%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--neon-cyan), transparent);
+}
+
+/* 用户头像 */
+#userAvatar {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+    box-shadow: 0 0 12px rgba(167, 139, 250, 0.5); /* 默认紫色光晕 */
+}
+#userAvatar:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 20px rgba(167, 139, 250, 0.8);
+}
+
+/* 用户名 */
+#userName {
+    color: #f0f0f0;
+    /* 细腻的文字发光效果 */
+    text-shadow: 0 0 3px rgba(255, 255, 255, 0.5), 0 0 8px var(--neon-violet);
+}
+
+
+/* --- 4. 菜单项 - 细腻的悬停反馈 --- */
+#mainMenuPopup .menu-items-container button {
+    background-color: transparent; /* 清除原始背景 */
+    color: #d1d5db;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* 悬停效果 */
+#mainMenuPopup .menu-items-container button:hover {
+    color: #ffffff;
+    /* 细腻的渐变背景 */
+    background: linear-gradient(90deg, 
+        rgba(34, 211, 238, 0.1), 
+        rgba(167, 139, 250, 0.15)
+    );
+}
+
+/* 菜单项图标 */
+#mainMenuPopup .menu-items-container button i {
+    color: #9ca3af;
+    transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+#mainMenuPopup .menu-items-container button:hover i {
+    color: var(--neon-cyan);
+    text-shadow: 0 0 6px var(--neon-cyan);
+}
