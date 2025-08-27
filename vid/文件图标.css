@@ -1,0 +1,91 @@
+/* [替换旧的图标颜色规则] -- 扩展版图标颜色方案 */
+
+/* 1. 文件夹图标 - 明亮黄橙渐变 */
+.file-item .fa-folder {
+    background: linear-gradient(135deg, #FFC107 0%, #FF9801 100%) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    color: transparent !important;
+    text-shadow: 0 2px 4px rgba(255, 152, 0, 0.3) !important;
+}
+
+/* 2. GitHub图标 - 标志性的紫色 */
+.fa-github {
+    color: #A78BFA !important; /* 紫罗兰色 */
+}
+
+
+/* --- 3. 代码与编程相关 --- */
+
+/* HTML - 橙红色 */
+.file-item .fa-html5 { color: #E65100 !important; }
+
+/* CSS - 蓝色 */
+.file-item .fa-css3 { color: #0277BD !important; }
+
+/* JavaScript (主脚本图标) - 鲜明的黄色 */
+.file-item .fa-code { color: #FBC02D !important; }
+
+/* 其他代码文件 (php, py, java, json, etc.) - 绿色 */
+.file-item .fa-file-code-o { color: #388E3C !important; }
+
+/* SQL 文件 - 数据库蓝色 */
+.file-item .fa-database { color: #1565C0 !important; }
+
+
+/* --- 4. 文档与文本 --- */
+
+/* Markdown 和 TXT - 蓝灰色 */
+.file-item .fa-file-text-o { color: #546E7A !important; }
+
+/* Word 文档 - 微软蓝色 */
+.file-item .fa-file-word-o { color: #2B579A !important; }
+
+/* Excel 表格 (包括CSV) - 微软绿色 */
+.file-item .fa-file-excel-o { color: #1D6F42 !important; }
+
+/* PowerPoint 演示文稿 - 微软橙色 */
+.file-item .fa-file-powerpoint-o { color: #D14423 !important; }
+
+/* PDF 文件 - Adobe 红色 */
+.file-item .fa-file-pdf-o { color: #D32F2F !important; }
+
+
+/* --- 5. 媒体文件 --- */
+
+/* 图像文件 (PNG, JPG, etc.) - 紫色 */
+.file-item .fa-file-image-o { color: #7B1FA2 !important; }
+
+/* 音频文件 (MP3, WAV, etc.) - 粉红色 */
+.file-item .fa-file-audio-o { color: #D81B60 !important; }
+
+/* 视频文件 (MP4, MOV, etc.) - 青色 */
+.file-item .fa-file-video-o { color: #0097A7 !important; }
+
+
+/* --- 6. 压缩与系统文件 --- */
+
+/* 压缩包 (ZIP, RAR, 7z etc.) - 棕色 */
+.file-item .fa-file-archive-o { color: #06a655 !important; }
+
+/* Git 相关 - Git官方橙色 */
+.file-item .fa-git { color: #F05033 !important; }
+
+/* 配置文件 (ini, conf) - 深灰色 */
+.file-item .fa-cog { color: #616161 !important; }
+.file-item .fa-cogs { color: #616161 !important; } /* for .exe */
+
+/* Android APK - Android 绿色 */
+.file-item .fa-android { color: #A4C639 !important; }
+
+/* Apple DMG - 苹果灰色 */
+.file-item .fa-apple { color: #9E9E9E !important; }
+
+
+/* --- 7. 其他 --- */
+
+/* 字体文件 (ttf, otf, etc.) - 独特的蓝绿色 */
+.file-item .fa-font { color: #00796B !important; }
+
+/* 默认/未知文件类型图标 - 中性灰色 */
+.file-item .fa-file-o { color: #B0BEC5 !important; }
