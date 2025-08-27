@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="./style.css">
     
    
-        <script src="./js/果冻浸染.js"></script>
+        <script src="果冻浸染.js"></script>
 </head>
 
 <body>
@@ -279,12 +279,13 @@
                 <h3>
                     <span class="modal-title-text">代理设置</span>
                     <!-- 新增: 自动优选开关 -->
-                    <button id="proxyAutoSelectToggle" class="btn-icon" title="点击切换自动选择最低延迟代理">
-                        <i class="fa fa-magic"></i>
+                                        <button id="proxyClearAllBtn" class="btn-icon danger" title="清空所有代理(保留默认)">
+                        <i class="fa fa-trash"></i>
                     </button>
                     <button id="proxyGlobalEnableToggle" class="btn-icon" title="点击切换全局代理状态">
                         <i class="fa fa-power-off"></i>
                     </button>
+                    
                     <button id="proxyCancelSettingsBtn" class="btn-icon" title="关闭设置">
                         <i class="fa fa-times"></i>
                     </button>
@@ -296,13 +297,17 @@
                     </div>
                 </div>
                 <div class="modal-buttons">
-                    <button id="proxyClearAllBtn" class="btn-icon danger" title="清空所有代理(保留默认)">
-                        <i class="fa fa-trash"></i>
+     <button id="importBtn" class="btn-icon" title="导入并刷新所有节点">
+                        <i class="fa fa-cloud-download"></i>
+                    </button>
+                    <button id="proxyAutoSelectToggle" class="btn-icon" title="点击切换自动选择最低延迟代理">
+                        <i class="fa fa-magic"></i>
                     </button>
                     <button id="proxyTestAllBtn" class="btn-icon" title="全部测试延迟">
                         <i class="fa fa-flash"></i>
                         <span class="spinner-small hidden" id="proxyTestAllSpinner"></span>
                     </button>
+                    
                     <button id="proxyAddBtn" class="btn-icon" title="添加代理">
                         <i class="fa fa-plus"></i>
                     </button>
@@ -455,7 +460,9 @@ const PROXY_TEST_URL = 'https://raw.githubusercontent.com/rjdsq/rjdsq.github.io/
         viewToggleBtn: document.getElementById('viewToggleBtn'),
         proxyQuickToggle: document.getElementById('proxyQuickToggle'),
         proxySettingsModal: document.getElementById('proxySettingsModal'),
-        proxyAutoSelectToggle: document.getElementById('proxyAutoSelectToggle'), // 新增: 自动选择代理按钮
+        proxyAutoSelectToggle: document.getElementById('proxyAutoSelectToggle'), 
+        userName: document.getElementById('userName'),
+        importBtn: document.getElementById('importBtn'), 
         proxyGlobalEnableToggle: document.getElementById('proxyGlobalEnableToggle'),
         proxyAddBtn: document.getElementById('proxyAddBtn'),
         proxyListContainer: document.getElementById('proxyListContainer'),
@@ -851,13 +858,14 @@ const PROXY_TEST_URL = 'https://raw.githubusercontent.com/rjdsq/rjdsq.github.io/
     }
     
     //  渲染仓库列表到页面
+    //  渲染仓库列表到页面 (最终修复版)
     function renderRepoList() {
-    state.repos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-    el.repoList.innerHTML = state.repos.length === 0 ? '<div class="empty-state"><i class="fa fa-github"></i><p>没有找到仓库</p></div>' : '';
-    state.repos.forEach(repo => {
-        const item = document.createElement('div');
-        item.className = 'file-item';
-        item.innerHTML = `
+        state.repos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        el.repoList.innerHTML = state.repos.length === 0 ? '<div class="empty-state"><i class="fa fa-github"></i><p>没有找到仓库</p></div>' : '';
+        state.repos.forEach(repo => {
+            const item = document.createElement('div');
+            item.className = 'file-item';
+            item.innerHTML = `
                 <div class="file-icon"><i class="fa fa-github"></i></div>
                 <div class="file-info">
                     <p class="file-name">${repo.name}</p>
@@ -871,71 +879,62 @@ const PROXY_TEST_URL = 'https://raw.githubusercontent.com/rjdsq/rjdsq.github.io/
                 </div>
             `;
 
-        item.addEventListener('click', async () => {
-            const lastBranch = localStorage.getItem(`last_branch_${repo.full_name}`);
-            const branchToLoad = lastBranch || repo.default_branch;
+            // --- 全新的、统一的事件处理逻辑 ---
+            let pressTimer = null;
+            let isLongPress = false;
 
-            const newState = {
-                repo: repo.full_name,
-                path: '',
-                branch: branchToLoad
-            };
-            history.pushState(newState, '', `#/${repo.full_name}`);
-            state.currentRepo = repo.full_name;
-            state.currentPath = '';
-            state.currentBranch = branchToLoad;
-            el.currentRepo.textContent = repo.name;
-
-            renderPathNav();
-            toggleView(false);
-
-            await fetchBranches(repo);
-            renderBranchSwitcher();
-            fetchFiles();
-        });
-        let pressTimer = null;
-        item.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
+            item.addEventListener('touchstart', (e) => {
+                isLongPress = false;
                 pressTimer = setTimeout(() => {
-                    e.preventDefault();
-                    state.selectedRepo = repo;
-                    showRepoContextMenu(e, repo);
-                    pressTimer = null;
-                }, 500);
-            }
-        }, {
-            passive: false
-        });
-        item.addEventListener('mousedown', (e) => {
-            if (e.button === 0) {
-                pressTimer = setTimeout(() => {
-                    e.preventDefault();
-                    state.selectedRepo = repo;
-                    showRepoContextMenu(e, repo);
-                    pressTimer = null;
-                }, 500);
-            }
-        });
-        ['touchend', 'touchcancel', 'mouseup', 'mouseleave'].forEach(event => {
-            item.addEventListener(event, () => {
-                if (pressTimer) {
-                    clearTimeout(pressTimer);
-                    pressTimer = null;
+                    isLongPress = true;
+                }, 500); // 500毫秒定义为长按
+            }, { passive: true });
+
+            item.addEventListener('touchmove', () => {
+                // 如果手指开始移动，则取消长按计时
+                clearTimeout(pressTimer);
+            });
+
+            item.addEventListener('touchend', () => {
+                // 手指抬起时，清除计时器
+                clearTimeout(pressTimer);
+            });
+
+            item.addEventListener('click', async (e) => {
+                // 只有当不是长按时，才执行点击操作
+                if (!isLongPress) {
+                    const lastBranch = localStorage.getItem(`last_branch_${repo.full_name}`);
+                    const branchToLoad = lastBranch || repo.default_branch;
+
+                    const newState = { repo: repo.full_name, path: '', branch: branchToLoad };
+                    history.pushState(newState, '', `#/${repo.full_name}`);
+                    state.currentRepo = repo.full_name;
+                    state.currentPath = '';
+                    state.currentBranch = branchToLoad;
+                    el.currentRepo.textContent = repo.name;
+
+                    renderPathNav();
+                    toggleView(false);
+
+                    await fetchBranches(repo);
+                    renderBranchSwitcher();
+                    fetchFiles();
                 }
             });
+
+            item.addEventListener('contextmenu', (e) => {
+                // contextmenu 是触发菜单的唯一标准方式（桌面右键、移动端长按）
+                e.preventDefault();
+                clearTimeout(pressTimer); // 确保计时器被清除
+                isLongPress = true;      // 标记为长按已发生
+                state.selectedRepo = repo;
+                showRepoContextMenu(e, repo);
+            });
+            // --- 逻辑结束 ---
+
+            el.repoList.appendChild(item);
         });
-        item.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            if (pressTimer) {
-                clearTimeout(pressTimer);
-                pressTimer = null;
-            }
-            state.selectedRepo = repo;
-            showRepoContextMenu(e, repo);
-        });
-        el.repoList.appendChild(item);
-    });
-}
+    }
     
     //  显示仓库列表视图
     function showRepoListView() {
@@ -1171,82 +1170,129 @@ function renderBranchSwitcher() {
     }
     
     //  渲染文件列表到页面
+        //  渲染文件列表到页面 (最终修复版)
     function renderFileList() {
-    const list = (state.displayFiles && state.displayFiles.length >= 0) ? state.displayFiles : state.files;
-    el.fileList.innerHTML = (!list || list.length === 0) ? '<div class="empty-state"><i class="fa fa-github"></i><p>此分支为空</p></div>' : '';
-    const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'];
-    (list || []).forEach((file) => {
-        const isDir = file.type === 'dir';
-        const icon = isDir ? 'fa-folder' : getFileIcon(file.name);
-        const item = document.createElement('div');
-        item.className = 'file-item';
-        const fileExtension = file.name.split('.').pop()?.toLowerCase();
-        const isImage = !isDir && imageExtensions.includes(fileExtension);
+        const list = (state.displayFiles && state.displayFiles.length >= 0) ? state.displayFiles : state.files;
+        el.fileList.innerHTML = (!list || list.length === 0) ? '<div class="empty-state"><i class="fa fa-github"></i><p>此分支为空</p></div>' : '';
+        const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'];
+        
+        (list || []).forEach((file) => {
+            const isDir = file.type === 'dir';
+            const icon = isDir ? 'fa-folder' : getFileIcon(file.name);
+            const item = document.createElement('div');
+            const fileExtension = file.name.split('.').pop()?.toLowerCase();
+            const isImage = !isDir && imageExtensions.includes(fileExtension);
 
-        item.className = isImage ? 'file-item is-image-grid' : 'file-item';
+            item.className = isImage ? 'file-item is-image-grid' : 'file-item';
 
-        let iconOrThumbnailHtml = '';
-        if (isImage) {
-            const rawUrl = (file.download_url) ? file.download_url : file.html_url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
-            const imageUrl = getProxiedUrl(rawUrl);
-            iconOrThumbnailHtml = `<img src="${imageUrl}" class="file-thumbnail" alt="${file.name}">`;
-        } else {
-            iconOrThumbnailHtml = `<div class="file-icon"><i class="fa ${icon}"></i></div>`;
-        }
-        item.innerHTML = `
+            let iconOrThumbnailHtml = '';
+            if (isImage) {
+                const rawUrl = (file.download_url) ? file.download_url : file.html_url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+                const imageUrl = getProxiedUrl(rawUrl);
+                iconOrThumbnailHtml = `
+                    <div class="file-thumbnail-container loading" data-image-url="${escapeHtml(imageUrl)}" data-image-name="${escapeHtml(file.name)}">
+                        <div class="thumbnail-error retry-trigger" title="点击重试"><i class="fa fa-exclamation-triangle"></i></div>
+                    </div>`;
+            } else {
+                iconOrThumbnailHtml = `<div class="file-icon"><i class="fa ${icon}"></i></div>`;
+            }
+
+            item.innerHTML = `
                 ${iconOrThumbnailHtml}
                 <div class="file-info">
-                    <p class="file-name">${file.name}</p>
+                    <p class="file-name">${escapeHtml(file.name)}</p>
                     <p class="file-meta">
                         ${isDir ? '文件夹' : formatSize(file.size)} · ${file.last_modified ? formatRelativeTime(new Date(file.last_modified)) : '加载中'}
                     </p>
                 </div>
             `;
-        let pressTimer = null;
-        item.addEventListener('click', (e) => {
-            if (pressTimer) clearTimeout(pressTimer);
-            if (e.imagePreviewAction) return;
-            isDir ? navigateToDir(file.name) : editFile(file);
-        });
-        item.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
+            
+            // --- 全新的、统一的事件处理逻辑 ---
+            let pressTimer = null;
+            let isLongPress = false;
+
+            item.addEventListener('touchstart', (e) => {
+                isLongPress = false;
                 pressTimer = setTimeout(() => {
-                    e.preventDefault();
-                    showContextMenu(e, file);
-                    pressTimer = null;
-                }, 700);
-            }
-        }, {
-            passive: false
-        });
-        item.addEventListener('mousedown', (e) => {
-            if (e.button === 0) {
-                pressTimer = setTimeout(() => {
-                    e.preventDefault();
-                    showContextMenu(e, file);
-                    pressTimer = null;
-                }, 700);
-            }
-        });
-        ['touchend', 'touchcancel', 'mouseup', 'mouseleave'].forEach(event => {
-            item.addEventListener(event, () => {
-                if (pressTimer) {
-                    clearTimeout(pressTimer);
-                    pressTimer = null;
+                    isLongPress = true;
+                }, 500);
+            }, { passive: true });
+
+            item.addEventListener('touchmove', () => {
+                clearTimeout(pressTimer);
+            });
+
+            item.addEventListener('touchend', () => {
+                clearTimeout(pressTimer);
+            });
+
+            item.addEventListener('click', (e) => {
+                if (e.imagePreviewAction || e.target.closest('.retry-trigger')) return;
+                if (!isLongPress) {
+                    isDir ? navigateToDir(file.name) : editFile(file);
                 }
             });
-        });
-        item.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            if (pressTimer) {
+
+            item.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
                 clearTimeout(pressTimer);
-                pressTimer = null;
-            }
-            showContextMenu(e, file);
+                isLongPress = true;
+                showContextMenu(e, file);
+            });
+            // --- 逻辑结束 ---
+            
+            el.fileList.appendChild(item);
         });
-        el.fileList.appendChild(item);
-    });
-}
+
+        processImagePlaceholders();
+    }
+    
+    
+        // 新增函数：处理所有图片容器，实现懒加载和状态切换
+    function processImagePlaceholders() {
+        // 找到所有处于“加载中”状态的图片容器
+        const placeholders = document.querySelectorAll('.file-thumbnail-container.loading');
+
+        placeholders.forEach(container => {
+            const imageUrl = container.dataset.imageUrl;
+            const imageName = container.dataset.imageName;
+            if (!imageUrl) return;
+
+            // 在内存中创建一个新的Image对象
+            const img = new Image();
+            img.className = 'file-thumbnail';
+            img.alt = imageName;
+            
+            // 监听图片加载成功事件
+            img.onload = () => {
+                // 1. 将加载成功的图片添加到容器中
+                container.appendChild(img);
+                // 2. 切换CSS类，触发淡入动画
+                container.classList.remove('loading');
+                container.classList.add('loaded');
+            };
+
+            // 监听图片加载失败事件
+            img.onerror = () => {
+                console.error('图片加载失败:', imageUrl);
+                // 切换CSS类，显示失败图标
+                container.classList.remove('loading');
+                container.classList.add('error');
+            };
+
+            // **最后**才设置src属性，这会启动图片的下载过程
+            img.src = imageUrl;
+        });
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     //  渲染面包屑路径导航
     function renderPathNav() {
@@ -1297,7 +1343,9 @@ function renderBranchSwitcher() {
 }
     
     //  设置所有DOM元素的事件监听器
+        //  设置所有DOM元素的事件监听器 (最终修复版)
     function setupEventListeners() {
+        el.importBtn.addEventListener('click', () => findAndSetBestProxy(true));
         el.newFolderBtn.onclick = function() {
             if (!state.currentRepo) {
                 showCreateRepoModal();
@@ -1312,7 +1360,6 @@ function renderBranchSwitcher() {
                 state.token = token;
                 showApp();
                 await Promise.all([fetchRepos(), fetchUserInfo()]);
-                // 登录后, 根据用户设置决定是否自动优选代理
                 if (state.autoSelectProxy) {
                     findAndSetBestProxy();
                 } else {
@@ -1327,6 +1374,21 @@ function renderBranchSwitcher() {
             hideContextMenu();
             el.mainMenuPopup.classList.toggle('hidden');
         };
+
+        // --- 全新的、统一的菜单关闭逻辑 ---
+        function handleInteractionToCloseMenu(e) {
+            if (el.contextMenu.classList.contains('hidden')) {
+                return;
+            }
+            if (!el.contextMenu.contains(e.target)) {
+                hideContextMenu();
+            }
+        }
+        document.addEventListener('mousedown', handleInteractionToCloseMenu);
+        document.addEventListener('touchstart', handleInteractionToCloseMenu, { passive: true });
+        // --- 逻辑结束 ---
+
+        // 全局点击监听器（用于关闭下拉菜单等）
         document.addEventListener('click', function(e) {
             if (!el.mainMenuPopup.classList.contains('hidden')) {
                 if (!el.mainMenuPopup.contains(e.target) && e.target !== el.mainMenuBtn) {
@@ -1337,6 +1399,7 @@ function renderBranchSwitcher() {
                 el.customSortDropdown.classList.add('hidden');
             }
         });
+
         el.menuRepoList.onclick = () => {
             el.mainMenuPopup.classList.add('hidden');
             showRepoListView();
@@ -1358,7 +1421,6 @@ function renderBranchSwitcher() {
             state.user = null;
             showAuth();
         };
-
         const toggleProxyAndRefresh = async () => {
             state.proxyGlobalEnable = !state.proxyGlobalEnable;
             localStorage.setItem('proxy_global_enable', JSON.stringify(state.proxyGlobalEnable));
@@ -1369,10 +1431,8 @@ function renderBranchSwitcher() {
                 await fetchFiles(true);
             }
         };
-
         el.proxyGlobalEnableToggle.addEventListener('click', toggleProxyAndRefresh);
         el.proxyQuickToggle.addEventListener('click', toggleProxyAndRefresh);
-
         el.menuProxySettings.addEventListener('click', () => {
             el.mainMenuPopup.classList.add('hidden');
             openProxySettingsModal();
@@ -1381,13 +1441,6 @@ function renderBranchSwitcher() {
         el.saveEdit.addEventListener('click', saveEditedFile);
         el.closeEditModal.onclick = hideEditModal;
         el.cancelEdit.onclick = hideEditModal;
-        document.addEventListener('click', hideContextMenu);
-        document.addEventListener('touchstart', (e) => {
-            if (!el.contextMenu.contains(e.target)) hideContextMenu();
-        });
-        document.addEventListener('touchmove', (e) => {
-            if (!el.contextMenu.contains(e.target)) hideContextMenu();
-        });
         el.modalOverlay.addEventListener('click', (e) => {
             if (e.target === el.modalOverlay) hideModal();
         });
@@ -1448,24 +1501,16 @@ function renderBranchSwitcher() {
             });
         }
         el.proxyCancelSettingsBtn.addEventListener('click', closeProxySettingsModal);
-        
-      // “自动优选代理”开关的点击事件
-el.proxyAutoSelectToggle.addEventListener('click', () => {
-    // 切换状态并保存
-    state.autoSelectProxy = !state.autoSelectProxy;
-    localStorage.setItem('proxy_auto_select', JSON.stringify(state.autoSelectProxy));
-    updateProxySettingsUI(); // 更新按钮的亮/灭状态
-
-    // 根据切换后的状态显示不同的提示信息
-    if (state.autoSelectProxy) {
-        // 当开启时，只提示，不执行任何操作
-        showToast('已开启自动选择最优代理，下次网页加载后生效');
-    } else {
-        // 当关闭时，也只提示
-        showToast('已关闭自动优选代理');
-    }
-});
-        
+        el.proxyAutoSelectToggle.addEventListener('click', () => {
+            state.autoSelectProxy = !state.autoSelectProxy;
+            localStorage.setItem('proxy_auto_select', JSON.stringify(state.autoSelectProxy));
+            updateProxySettingsUI();
+            if (state.autoSelectProxy) {
+                showToast('已开启自动选择最优代理，下次网页加载后生效');
+            } else {
+                showToast('已关闭自动优选代理');
+            }
+        });
         el.proxyAddBtn.addEventListener('click', () => openAddEditProxyModal());
         el.proxyTestAllBtn.addEventListener('click', testAllProxies);
         el.proxyClearAllBtn.addEventListener('click', showConfirmClearAllProxiesModal);
@@ -1475,34 +1520,26 @@ el.proxyAutoSelectToggle.addEventListener('click', () => {
             if (url && !/^https?:\/\//i.test(url)) {
                 url = 'https://' + url;
             }
-
             if (!validateAddEditProxyInput()) {
                 return;
             }
-            
             el.addEditProxySaveBtn.disabled = true;
             el.addEditProxySaveBtn.classList.add('btn-processing');
             el.addEditProxySaveBtn.innerHTML = `测试中 <span class="spinner-small"></span>`;
             el.addEditProxyError.style.display = 'none';
-
             const result = await determineBestProxyTypeAndTest(url);
-            const proxyObj = state.editingProxyIndex !== null ?
-                state.proxies[state.editingProxyIndex] :
-                {};
-
+            const proxyObj = state.editingProxyIndex !== null ? state.proxies[state.editingProxyIndex] : {};
             proxyObj.url = url;
             proxyObj.latency = result.ms;
             proxyObj.status = result.ok ? 'ok' : 'fail';
             proxyObj.err = result.err;
             proxyObj.type = result.type;
-
             if (state.editingProxyIndex === null) {
                 state.proxies.push(proxyObj);
                 if (state.proxies.length === 1) {
                     state.activeProxyIndex = 0;
                 }
             }
-            
             showToast('代理已保存');
             renderProxyList();
             saveProxyConfig();
@@ -1542,6 +1579,27 @@ el.proxyAutoSelectToggle.addEventListener('click', () => {
             el.createBranchModal.classList.add('hidden');
         };
     }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     //  显示文件编辑模态框
     function showEditModal() {
@@ -1888,10 +1946,11 @@ if (!res.ok) {
         ] : [
             ['edit', 'fa-edit', '编辑文件'],
             ['rename', 'fa-pencil', '重命名'],
-            ['download', 'fa-download', '下载文件'],
-            ['copyGitHubLink', 'fa-external-link', '复制链接'],
+            
+            ['copyGitHubLink', 'fa-share', '复制链接'],
             ['copyLink', 'fa-link', '复制raw链接'],
-            ['copyProxy', 'fa-share', '复制代理链接'],  
+            ['copyProxy', 'fa-link', '复制代理链接'],  
+            ['download', 'fa-download', '下载文件'],
             ['delete', 'fa-trash', '删除', 'text-red-400']
         ];
         items.forEach(([action, icon, text, className = '']) => {
@@ -3332,19 +3391,11 @@ async function showCreateBranchModal(repo) {
     })();
     
     //  打开代理设置模态框
+        //  打开代理设置模态框 (修正版)
     function openProxySettingsModal() {
         updateProxySettingsUI();
         renderProxyList();
         el.proxySettingsModal.classList.remove('hidden');
-        if (!document.getElementById('importBtn')) {
-            const btn = document.createElement('button');
-            btn.id = 'importBtn';
-            btn.className = 'btn-icon';
-            btn.title = '导入并刷新所有节点';
-            btn.innerHTML = '<i class="fa fa-cloud-download"></i>';
-            btn.onclick = () => findAndSetBestProxy(true);
-            document.querySelector('#proxySettingsModal .modal-buttons').insertBefore(btn, el.proxyAddBtn);
-        }
     }
     
     //  关闭代理设置模态框
@@ -3904,10 +3955,52 @@ async function testAllProxies() {
 
 
 
+<script>
 
+(function() {
+    'use strict';
+    // --- 配置 ---
+    const STAGGER_DELAY_MS = 25;
+    const DURATION_MS = 450;
+    const OFFSET_Y = '30px'; // 图标开始上浮的垂直距离
 
+    function applyFadeInUpEffect(nodes) {
+        nodes.forEach((node, index) => {
+            node.style.opacity = 0; // 初始不可见
 
+            setTimeout(() => {
+                node.animate([
+                    { transform: `translateY(${OFFSET_Y})`, opacity: 0 },
+                    { transform: 'translateY(0)', opacity: 1 }
+                ], {
+                    duration: DURATION_MS,
+                    easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', // 平滑的缓动
+                    fill: 'forwards'
+                });
+            }, index * STAGGER_DELAY_MS);
+        });
+    }
 
+    // --- 监听器 ---
+    const fileList = document.getElementById('fileList');
+    if (!fileList) return;
+    const observer = new MutationObserver((mutations) => {
+        const isGrid = fileList.classList.contains('grid');
+        if (!isGrid) return;
+        for (const mutation of mutations) {
+            if (mutation.addedNodes.length > 0) {
+                const itemNodes = Array.from(mutation.addedNodes).filter(n => n.nodeType === 1 && n.matches('.file-item'));
+                if (itemNodes.length > 0) {
+                    applyFadeInUpEffect(itemNodes);
+                }
+            }
+        }
+    });
+    observer.observe(fileList, { childList: true });
+    console.log('【淡入上浮】特效已加载！');
+})();
+
+</script>
 
 
 </body>
